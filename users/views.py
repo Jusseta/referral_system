@@ -16,23 +16,26 @@ class UserViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         """Creating new user or creating a new authentication code for existing user"""
         phone = request.data.get('phone')
-        if not User.objects.filter(phone=phone):
-            new_user = User.objects.create(phone=phone,
-                                           auth_code=create_auth_code(),
-                                           invite_code=create_invite_code())
-            new_user.save()
-            time.sleep(2)
-            send_auth_code(new_user.auth_code)
-            return Response({'Message send'}, status=status.HTTP_200_OK)
-
+        if not phone:
+            return Response({'Enter your phone number'}, status=status.HTTP_400_BAD_REQUEST)
         else:
-            user = User.objects.get(phone=phone)
-            user.auth_code = create_auth_code()
-            user.save()
+            if not User.objects.filter(phone=phone):
+                new_user = User.objects.create(phone=phone,
+                                               auth_code=create_auth_code(),
+                                               invite_code=create_invite_code())
+                new_user.save()
+                time.sleep(2)
+                send_auth_code(new_user.auth_code)
+                return Response({'Message send'}, status=status.HTTP_200_OK)
 
-            time.sleep(2)
-            send_auth_code(user.auth_code)
-            return Response({'Message send'}, status=status.HTTP_200_OK)
+            else:
+                user = User.objects.get(phone=phone)
+                user.auth_code = create_auth_code()
+                user.save()
+
+                time.sleep(2)
+                send_auth_code(user.auth_code)
+                return Response({'Message send'}, status=status.HTTP_200_OK)
 
     def update(self, request, *args, **kwargs):
         phone = request.data.get('phone')

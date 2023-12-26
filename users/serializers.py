@@ -9,7 +9,7 @@ class UserSerializer(serializers.ModelSerializer):
     invited_users = serializers.SerializerMethodField()
 
     def get_invited_users(self, obj):
-        """Adding invited users in an invited_users field"""
+        """Adding invited users in invited_users field"""
         return User.objects.filter(used_invite_code=obj.invite_code,).values('phone')
 
     class Meta:
