@@ -13,6 +13,7 @@ class User(AbstractUser):
     auth_code = models.IntegerField(verbose_name='authorization code', **NULLABLE)
     invite_code = models.CharField(unique=True, max_length=10, verbose_name='invite code', **NULLABLE)
     used_invite_code = models.CharField(max_length=10, verbose_name="other's invite code", **NULLABLE)
+    is_active = models.BooleanField(default=False, verbose_name='is active')
 
     USERNAME_FIELD = "phone"
     REQUIRED_FIELDS = []

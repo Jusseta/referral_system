@@ -4,14 +4,17 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from users.models import User
+from users.permissions import IsUser, IsSuperUser
 from users.serializers import UserSerializer
 from users.services import create_invite_code, create_auth_code, send_auth_code
+from rest_framework.authtoken.models import Token
 
 
 class UserViewSet(viewsets.ModelViewSet):
     """User's viewset"""
     queryset = User.objects.all()
     serializer_class = UserSerializer
+    permission_classes = [IsUser | IsSuperUser]
 
     def create(self, request, *args, **kwargs):
         """Creating new user or creating a new authentication code for existing user"""
@@ -19,23 +22,26 @@ class UserViewSet(viewsets.ModelViewSet):
         if not phone:
             return Response({'Enter your phone number'}, status=status.HTTP_400_BAD_REQUEST)
         else:
-            if not User.objects.filter(phone=phone):
-                new_user = User.objects.create(phone=phone,
-                                               auth_code=create_auth_code(),
-                                               invite_code=create_invite_code())
-                new_user.save()
-                time.sleep(2)
-                send_auth_code(new_user.auth_code)
-                return Response({'Message send'}, status=status.HTTP_200_OK)
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            if serializer.is_valid:
+                if not User.objects.filter(phone=phone):
+                    new_user = User.objects.create(phone=phone,
+                                                   auth_code=create_auth_code(),
+                                                   invite_code=create_invite_code())
+                    new_user.save()
+                    time.sleep(2)
+                    send_auth_code(new_user.auth_code)
+                    return Response({'Message send'}, status=status.HTTP_200_OK)
 
-            else:
-                user = User.objects.get(phone=phone)
-                user.auth_code = create_auth_code()
-                user.save()
+                else:
+                    user = User.objects.get(phone=phone)
+                    user.auth_code = create_auth_code()
+                    user.save()
 
-                time.sleep(2)
-                send_auth_code(user.auth_code)
-                return Response({'Message send'}, status=status.HTTP_200_OK)
+                    time.sleep(2)
+                    send_auth_code(user.auth_code)
+                    return Response({'Message send'}, status=status.HTTP_200_OK)
 
     def update(self, request, *args, **kwargs):
         phone = request.data.get('phone')
@@ -71,5 +77,7 @@ class VerifyAuthCodeView(APIView):
                     return Response({'Wrong authentication code'}, status=status.HTTP_400_BAD_REQUEST)
                 else:
                     user.auth_code = None
+                    user.is_active = True
                     user.save()
-                    return Response({'Success'}, status=status.HTTP_200_OK)
+                    token, created = Token.objects.get_or_create(user=user)
+                    return Response({'Token': token.key, 'user_id': user.id}, status=status.HTTP_200_OK)
